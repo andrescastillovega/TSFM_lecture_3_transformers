@@ -1,0 +1,9 @@
+model-name: tinystories-small
+seq_length: 256
+model_dim: 504
+num_heads: 12
+head_dim: 42
+batch_size: 100
+vocab_size: 2560
+n_layers: 12
+ffn_exp_factor: 4

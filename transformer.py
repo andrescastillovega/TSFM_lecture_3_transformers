@@ -122,32 +122,32 @@ def feed_forward_network_backward(x: np.ndarray, W_1: np.ndarray, W_2: np.ndarra
 def block_forward(x: np.ndarray,
                   W_Q: np.ndarray, W_K: np.ndarray, W_V: np.ndarray,
                   W_O: np.ndarray, W_FF_expand: np.ndarray, W_FF_contract: np.ndarray,
-                  gamma: np.ndarray, beta: np.ndarray):
+                  gamma1: np.ndarray, beta1: np.ndarray, gamma2: np.ndarray, beta2: np.ndarray):
     q, k, v = qkv_projection(x, W_Q, W_K, W_V)
     attn_o = multi_head_attention(q, k, v) @ W_O
-    ln1 = layer_norm(x + attn_o, gamma, beta)
+    ln1 = layer_norm(x + attn_o, gamma1, beta1)
     ff = feed_forward_network(ln1, W_FF_expand, W_FF_contract)
-    return layer_norm(ln1 + ff, gamma, beta)
+    return layer_norm(ln1 + ff, gamma2, beta2)
 
 def block_backward(x: np.ndarray,
                    W_Q: np.ndarray, W_K: np.ndarray, W_V: np.ndarray,
                    W_O: np.ndarray, W_FF_expand: np.ndarray, W_FF_contract: np.ndarray,
-                   gamma: np.ndarray, beta: np.ndarray,
+                   gamma1: np.ndarray, beta1: np.ndarray, gamma2: np.ndarray, beta2: np.ndarray,
                    dOut: np.ndarray):
     q, k, v = qkv_projection(x, W_Q, W_K, W_V)
     attn_pre = multi_head_attention(q, k, v)
     attn_proj = attn_pre @ W_O
 
     res1 = x + attn_proj
-    ln1  = layer_norm(res1, gamma, beta)
+    ln1  = layer_norm(res1, gamma1, beta1)
 
     ff   = feed_forward_network(ln1, W_FF_expand, W_FF_contract)
     res2 = ln1 + ff
 
-    dRes2, dG2, dB2 = layer_norm_backward(res2, gamma, beta, dOut)
+    dRes2, dG2, dB2 = layer_norm_backward(res2, gamma2, beta2, dOut)
 
     dLn1_ff, dW1, dW2 = feed_forward_network_backward(ln1, W_FF_expand, W_FF_contract, dRes2)
-    dRes1, dG1, dB1   = layer_norm_backward(res1, gamma, beta, dLn1_ff + dRes2)
+    dRes1, dG1, dB1   = layer_norm_backward(res1, gamma1, beta1, dLn1_ff + dRes2)
 
     B, S, d_model = x.shape
     d_qkv = attn_pre.shape[-1]
@@ -157,10 +157,10 @@ def block_backward(x: np.ndarray,
 
     # Support both 3D and 4D attention tensors
     if q.ndim == 3:
-        dQ4, dK4, dV4 = multi_head_attention_backward(q[:, None], k[:, None], v[:, None], dAttnPre[:, None])
+        dQ4, dK4, dV4 = multi_head_attention_backward(q[:, None], k[:, None], v[:, None], dAttnPre[:, None], unmasked=False)
         dQ, dK, dV = dQ4[:, 0], dK4[:, 0], dV4[:, 0]
     else:
-        dQ, dK, dV = multi_head_attention_backward(q, k, v, dAttnPre)
+        dQ, dK, dV = multi_head_attention_backward(q, k, v, dAttnPre, unmasked=False)
 
     X2D = x.reshape(-1, d_model)
     dXq, dW_Q = matmul_backward(X2D, W_Q, dQ.reshape(-1, d_qkv))
@@ -168,4 +168,4 @@ def block_backward(x: np.ndarray,
     dXv, dW_V = matmul_backward(X2D, W_V, dV.reshape(-1, d_qkv))
 
     dX = dRes1 + (dXq + dXk + dXv).reshape(B, S, d_model)
-    return dX, dW_Q, dW_K, dW_V, dW_O, dW1, dW2, (dG1 + dG2), (dB1 + dB2)
+    return dX, dW_Q, dW_K, dW_V, dW_O, dW1, dW2, dG1, dG2, dB1, dB2

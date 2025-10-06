@@ -88,12 +88,19 @@ def chunk_text_file(file_path: str, num_processes: int, special_token: str) -> C
     print(f"🔣 Pretokenizing lenght: {len(final_pretoken_frequency_counts)}")
     return final_pretoken_frequency_counts
 
-def train_bpe(pretokenized_freq: Counter[str], num_merges: int):
+def train_bpe(pretokenized_freq: Counter[str], num_merges: int, special_tokens: list[str] = None):
     # Represent every token as a list[int] so we can edit in place
     corpus = {tuple(token.encode()): count for token, count in pretokenized_freq.items()}
     vocab = {tuple([i]): i for i in range(256)}      # byte → id
     next_id = 256
     merges: dict[tuple[int, int], int] = {}
+
+    # Add special tokens to vocab BEFORE BPE merges
+    if special_tokens:
+        for special_token in special_tokens:
+            token_bytes = tuple(special_token.encode('utf-8'))
+            vocab[token_bytes] = next_id
+            next_id += 1
 
     for _ in trange(num_merges, desc="BPE merges"):
         # 1. Count adjacent pairs
@@ -142,7 +149,8 @@ if __name__ == "__main__":
 
     pretokenized_frequency_table = chunk_text_file(args.path, args.nproc, "<|endoftext|>")
 
-    merges, vocab = train_bpe(pretokenized_frequency_table, args.nmerges)
+    special_tokens = ["<|endoftext|>"]
+    merges, vocab = train_bpe(pretokenized_frequency_table, args.nmerges, special_tokens)
 
     save_bpe(merges, vocab, args.model_name)
 
@@ -153,4 +161,5 @@ if __name__ == "__main__":
 
     print("Encoder: ", encoder('Toronto',f'{args.model_name}'))
     print("Decoder: ", decoder([261], f'{args.model_name}'))
+    print("Special Token (256):", decoder([256], f'{args.model_name}'))
 

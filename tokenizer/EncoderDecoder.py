@@ -2,16 +2,25 @@
 import os
 import sys
 from typing import Tuple, Dict
+import regex as re
 
 # sys.path.append(os.path.abspath('./utils.py'))
 
 from .utils import load_bpe, render_token
 
-def encoder(text: str, model: str):
-    merges, _ = load_bpe(model_name=model)
-    text_bytes = list(text.encode('utf-8'))
+def encoder(text: str, model: str, special_tokens: list = ['<|endoftext|>']):
+    merges, vocab = load_bpe(model_name=model)
 
-    tokens = text_bytes
+    pattern = '(' + '|'.join(re.escape(token) for token in special_tokens) + ')'
+    chunks = re.split(pattern, text)
+
+    tokens = []
+    for chunk in chunks:
+        if chunk in special_tokens:
+            tokens.extend([vocab[tuple(chunk.encode('utf-8'))]])
+        else:
+            tokens.extend(list(chunk.encode('utf-8')))
+
     for merge in merges:
         updated_tokens = []
         i = 0

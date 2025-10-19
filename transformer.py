@@ -65,6 +65,7 @@ def multi_head_attention(q: np.ndarray, k: np.ndarray, v: np.ndarray, unmasked: 
     if unmasked:
         attn = softmax(q @ np.swapaxes(k, -2, -1) * scale)
     else:
+        print('mha',k.shape)
         attn_scores = q @ k.swapaxes(2,3)
         mask = np.tril(np.ones((q.shape[-2],q.shape[-2])), k=0).astype(bool)
         attn_scores_masked = np.where(mask, attn_scores, -np.inf)
@@ -124,7 +125,8 @@ def block_forward(x: np.ndarray,
                   W_O: np.ndarray, W_FF_expand: np.ndarray, W_FF_contract: np.ndarray,
                   gamma1: np.ndarray, beta1: np.ndarray, gamma2: np.ndarray, beta2: np.ndarray):
     q, k, v = qkv_projection(x, W_Q, W_K, W_V)
-    attn_o = multi_head_attention(q, k, v) @ W_O
+    print(k.shape)
+    attn_o = multi_head_attention(q, k, v, unmasked=False) @ W_O
     ln1 = layer_norm(x + attn_o, gamma1, beta1)
     ff = feed_forward_network(ln1, W_FF_expand, W_FF_contract)
     return layer_norm(ln1 + ff, gamma2, beta2)

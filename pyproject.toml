@@ -15,3 +15,8 @@ dependencies = [
     "tdqm>=0.0.1",
     "torch>=2.8.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.30.1",
+]

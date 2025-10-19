@@ -4,8 +4,6 @@ import sys
 from typing import Tuple, Dict
 import regex as re
 
-# sys.path.append(os.path.abspath('./utils.py'))
-
 from .utils import load_bpe, render_token
 
 def encoder(text: str, model: str, special_tokens: list = ['<|endoftext|>']):
